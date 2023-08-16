@@ -6,6 +6,7 @@ import MEMORY_GAME_RECORD from '@salesforce/schema/Memory_Game__c';
 import USER_ID from '@salesforce/user/Id';
 import { createRecord } from 'lightning/uiRecordApi';
 import { ShowToastEvent} from 'lightning/platformShowToastEvent';
+import { refreshApex } from '@salesforce/apex';
 
 export default class MemoryGameMain extends LightningElement {
 
@@ -44,6 +45,7 @@ export default class MemoryGameMain extends LightningElement {
     }
 
     connectedCallback() {
+        console.log('connectedCallback');
         this.getTop10Data();
         console.log(JSON.stringify(this.userData));
     }
@@ -53,6 +55,7 @@ export default class MemoryGameMain extends LightningElement {
     //inside li load icon
     //the ul should use a grid-container
     renderedCallback(){
+        console.log('renderedCallback');
         if(!this.isLibLoaded){
             //loadStyle is a promise that will be returned in the renderedCallback lifecycle
             loadStyle(this,fontawesome+'/fontawesome/css/font-awesome.min.css').then(()=>{
@@ -62,7 +65,6 @@ export default class MemoryGameMain extends LightningElement {
             })
             this.isLibLoaded = true;
         }
-        
     }
 
     getTop10Data(){
@@ -109,9 +111,7 @@ export default class MemoryGameMain extends LightningElement {
         this.cardsOpened[0].classList.remove("show","open");
         this.cardsOpened[1].classList.remove("show","open");
         this.cardsOpened = [];
-
-        //since it is known that there are only 16 elements
-        //perhaps fetching all the elements somewhere and checking if they all have the common css property would have been another approach
+        
         if(this.matchedCards.length === 16){
             const gameObj = {
                 Duration: this.totalTime,
@@ -205,11 +205,17 @@ export default class MemoryGameMain extends LightningElement {
         const recordInput = {apiName: MEMORY_GAME_RECORD.objectApiName, fields: {Duration__c: obj.Duration,Player__c: USER_ID, Moves__c: obj.Moves}};
         console.log('Creating Records: ' + JSON.stringify(recordInput));
         createRecord(recordInput).then(result => {
-            return this.getTop10Data();
-        }).then(data => {
-            console.log('testing');
-            console.log(JSON.stringify(data));
-            this.getTop10Data();
+            let brandNewRecord = {
+                CreatedDate: result.fields.CreatedDate.value,
+                Duration__c: result.fields.Duration__c.value,
+                Name: result.fields.Name.value,
+                Player__c: result.fields.Player__c.value,
+                Moves__c: result.fields.Moves__c.value,
+                Id: result.id,
+                Player__r:{FirstName:result.fields.Player__r.value.fields.Name.value, LastName: result.fields.Player__r.value.fields.Name.value ? result.fields.Player__r.value.fields.Name.value : '',Id: result.fields.Player__r.value.fields.Id.value}
+            }
+            //this gets added, but when the page is refreshed it still remain the same
+            this.boardData = [...this.boardData, brandNewRecord];
         }).catch(error => {
             this.showToast('Error', `Ops! An error ocurred! Pass this message to your SF admin:${JSON.stringify(error.body.message)}`,'error');
         });
